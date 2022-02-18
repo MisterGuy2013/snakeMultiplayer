@@ -37,16 +37,21 @@ socket.on("disconnected", function(msg){
     running = false;
     reset();
     resetTwo();
+    score = 0;
+    otherScore = 0;
+    $("#score")[0].innerHTML = `${score}:${otherScore}`;
   }
   else{
-    console.log(`${msg}:${snakeTwo.user}`);
+    //console.log(`${msg}:${snakeTwo.user}`);
   }
+  
 });
 socket.on("update", function(msg){
   var split = msg.split("|");
   if(split[0] == snakeTwo.user){
   snakeTwo = JSON.parse(split[1]);
   snakeTwo.user = split[0];
+  apple = JSON.parse(split[2]);
   }
   else{
     //console.log(`${split[0]}:${snakeTwo.user}`);
@@ -72,12 +77,20 @@ socket.on("score", function(msg){
     else if(split[1] == "mygood"){
       score += 1;
     }
+    else if(split[1] == "tie"){
+      score += 1;
+      otherScore += 1;
+    }
   }
   else if(split[0] == snakeTwo.user){
     if(split[1] == "mybad"){
       score += 1;
     }
     else if(split[1] == "mygood"){
+      otherScore += 1;
+    }
+    else if(split[1] == "tie"){
+      score += 1;
       otherScore += 1;
     }
   }
@@ -112,6 +125,14 @@ function resetTwo(user){
 function resetApple(){
   apple.x = getRandomInt(0, 25) * grid;
   apple.y = getRandomInt(0, 25) * grid;
+  if(apple.x<10){
+    apple.x += 10;
+  }
+  if(apple.y < 10) {
+    apple.y += 10;
+  }
+  
+  apple.cells = [{"x":apple.x, "y": apple.y},{"x":apple.x - grid, "y": apple.y},{"x":apple.x, "y": apple.y-grid},{"x":apple.x - grid, "y": apple.y-grid}];
 }
 function update(){
   var stringSnake = JSON.stringify(snake);
@@ -186,45 +207,16 @@ grid = 10;
 
 
   context.fillStyle = "Green";
-  context.fillRect(apple.x, apple.y, grid-1, grid-1);
-  context.fillStyle = "Blue";
-  snake.cells.forEach(function(cell, index) {
-    if(index ==0){
-      context.fillStyle = "Black";
-      context.fillRect(cell.x, cell.y, grid-1, grid-1);
-    }
-    else{
-      context.fillStyle = "Blue";
-      context.fillRect(cell.x, cell.y, grid-1, grid-1);
-    }
-
-
-    if (cell.x == apple.x && cell.y == apple.y) {
-      snake.maxCells += 3;
-      resetApple();
-      socket.emit("apple", username);
-    }
-    for (var i = index + 1; i < snake.cells.length; i++) {
-      if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
-        reset();
-      }
-    }
-
-    if(index == 0){
-      for (var i = index + 1; i < snakeTwo.cells.length; i++) {
-      if (cell.x === snakeTwo.cells[i].x && cell.y === snakeTwo.cells[i].y) {
-        console.log("E")
-        socket.emit("score", username + "|" + "mybad");
-        reset();
-      }
-    }
-    }
-    
-  });
+  /*apple.cells.forEach(function(cell, index){
+    context.fillRect(cell.x, cell.y, grid-1, grid-1);
+  });*/
+  context.fillRect(apple.cells[0].x+grid-0.5 , apple.cells[0].y + grid-0.5, 0.5-grid*2, 0.5-grid*2); 
 
 
 
-  context.fillStyle = "Red";
+
+
+context.fillStyle = "Red";
   snakeTwo.cells.forEach(function(cell, index) {
 
     if(index ==0){
@@ -245,6 +237,71 @@ grid = 10;
       }
     }
   });
+
+
+
+
+var scored = false;
+  context.fillStyle = "Blue";
+  snake.cells.forEach(function(cell, index) {
+    if(index ==0){
+      context.fillStyle = "Black";
+      context.fillRect(cell.x, cell.y, grid-1, grid-1);
+    }
+    else{
+      context.fillStyle = "Blue";
+      context.fillRect(cell.x, cell.y, grid-1, grid-1);
+    }
+
+    apple.cells.forEach(function(apple, index){
+      if (cell.x == apple.x && cell.y == apple.y) {
+            snake.maxCells += 3;
+            resetApple();
+            socket.emit("apple", username);
+      }
+    });
+    
+
+
+    for (var i = index + 1; i < snake.cells.length; i++) {
+      if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
+        socket.emit("score", username + "|" + "mybad");
+        reset();
+      }
+    }
+
+    if(index == 0){
+      for (var i = index + 1; i < snakeTwo.cells.length; i++) {
+      if (cell.x === snakeTwo.cells[i].x && cell.y === snakeTwo.cells[i].y) {
+        if(scored == false){
+        socket.emit("score", username + "|" + "mybad");
+        reset();
+        scored = true;
+        }
+      }
+    }
+    
+    }
+    else{
+      for (var i = 0; i < snakeTwo.cells.length; i++) {
+      if (cell.x === snakeTwo.cells[i].x && cell.y === snakeTwo.cells[i].y) {
+        if(scored == false && i != 0){
+        socket.emit("score", username + "|" + "tie");
+        reset();
+        scored = true;
+        }
+      }
+      else{
+       // console.log(`${cell.x == snakeTwo.cells[i].x}   ${cell.y ==snakeTwo.cells[i].y } `)
+      }
+      }
+    }
+    
+  });
+
+
+
+  
   update();
   }
   else{
